@@ -104,12 +104,7 @@ pub async fn post_score_handler(
             time: score.time,
         },
     );
-    event!(
-        Level::INFO,
-        "team {} posted score {}",
-        score.team,
-        score.score
-    );
+    event!(Level::INFO, "team {} update", score.team);
     Ok(StatusCode::CREATED.into_response())
 }
 pub fn router(state: AppState) -> Router {
