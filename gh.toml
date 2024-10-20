@@ -1,4 +1,4 @@
-data = "/srv/veloquent/data.json"
+data = "/srv/leaderboard/data.json"
 secret = "secret"
 [listen]
 address = "127.0.0.1"
