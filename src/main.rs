@@ -28,8 +28,8 @@ async fn main() -> Result<()> {
     event!(Level::WARN, "reading configuration from {:?}", config_path);
     let config = std::fs::read_to_string(config_path)?;
     let config: Config = toml::from_str(config.as_str())?;
-    event!(Level::INFO, "set data file to {:?}", &config.data);
-    if let Some(parent_dir) = std::path::Path::new(&config.data).parent() {
+    event!(Level::INFO, "set data file to {:?}", &config.store.data);
+    if let Some(parent_dir) = std::path::Path::new(&config.store.data).parent() {
         std::fs::create_dir_all(parent_dir)?;
     }
     use tokio::sync::RwLock;
@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
                 .write(true)
                 .create(true)
                 .truncate(false)
-                .open(&config.data)?;
+                .open(&config.store.data)?;
             let reader = std::io::BufReader::new(file);
             let l: view::RecordList = serde_json::from_reader(reader).unwrap_or_default();
             l
@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
-    let file = std::fs::File::create(&config.data)?;
+    let file = std::fs::File::create(&config.store.data)?;
     let writer = std::io::BufWriter::new(file);
     let record = RecordList {
         list: list.read().await.clone(),

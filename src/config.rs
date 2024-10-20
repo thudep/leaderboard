@@ -11,13 +11,16 @@ pub struct Listen {
     pub port: u16,
 }
 
+#[derive(Deserialize)]
+pub struct Static {
+    pub data: String,
+    pub secret: String,
+}
+
 /// 后端配置
 #[derive(Deserialize)]
 pub struct Config {
     /// 监听配置
     pub listen: Listen,
-    /// 上传配置
-    pub data: String,
-    /// 密钥
-    pub secret: String,
+    pub store: Static,
 }

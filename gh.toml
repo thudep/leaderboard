@@ -1,3 +1,4 @@
+[store]
 data = "/srv/leaderboard/data.json"
 secret = "secret"
 [listen]

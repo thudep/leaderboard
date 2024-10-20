@@ -7,6 +7,7 @@ use axum::{
     routing::post,
     Json, Router,
 };
+use chrono::TimeZone;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -53,21 +54,26 @@ pub struct ScorePost {
 
 impl IntoResponse for Leaderboard {
     fn into_response(self) -> Response {
-        let table_head =
-            "<table><thead><tr><th>Team</th><th>Score</th><th>Time</th></tr></thead><tbody>";
-        let table_tail = "</tbody></table>";
+        let table_head = r#"<div class="container"><h1>Ghost Hunter 2024 - JUNO Probe</h1><p>刷新页面以更新实时记录</p><div/><div class="container"><table class="table table-hover"><thead><tr><th>队伍</th><th>分数</th><th>时间</th></tr></thead><tbody>"#;
+        let table_tail = "</tbody></table><div/>";
         let mut table_body = String::new();
         let mut list: Vec<_> = self.0.iter().collect();
         list.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+        let tz_offset = chrono::FixedOffset::east_opt(8 * 3600).unwrap();
         for (team, record) in list {
             table_body.push_str(&format!(
                 "<tr><td>{}</td><td>{}</td><td>{}</td></tr>",
-                team, record.score, record.time
+                team,
+                record.score,
+                tz_offset
+                    .from_utc_datetime(&record.time.naive_utc())
+                    .format("%Y-%m-%d %H:%M:%S")
             ));
         }
+        let style = r#"<link href="https://cdnjs.snrat.com/ajax/libs/bootswatch/5.3.3/darkly/bootstrap.min.css" rel="stylesheet">"#;
         let table = format!(
-            r#"<!doctype html><html lang=zh-CN><head><meta charset=utf-8 /><meta name=viewport content="width=device-width,initial-scale=1.0" /><title>Ghost Hunter 排行榜</title></head><body>{}{}{}<body/></html>"#,
-            table_head, table_body, table_tail
+            r#"<!doctype html><html lang=zh-CN><head>{}<meta charset=utf-8 /><meta name=viewport content="width=device-width,initial-scale=1.0" /><title>Ghost Hunter 排行榜</title></head><body>{}{}{}<body/></html>"#,
+            style, table_head, table_body, table_tail
         );
         Html(table).into_response()
     }
