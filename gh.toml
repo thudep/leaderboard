@@ -1,5 +1,5 @@
 [store]
-data = "/srv/leaderboard/data.json"
+data = "/srv/leaderboard/"
 secret = "secret"
 [listen]
 address = "127.0.0.1"

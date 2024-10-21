@@ -38,10 +38,14 @@ pub struct RecordList {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct History(HashMap<String, Vec<Record>>);
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Leaderboard(HashMap<String, Record>);
 
 #[derive(Debug, Clone)]
 pub struct AppState {
+    pub history: Arc<RwLock<History>>,
     pub board: Arc<RwLock<Leaderboard>>,
 }
 
@@ -52,9 +56,30 @@ pub struct ScorePost {
     pub time: chrono::DateTime<chrono::Utc>,
 }
 
-impl IntoResponse for Leaderboard {
-    fn into_response(self) -> Response {
-        let table_head = r#"<div class="container"><h1>Ghost Hunter 2024 - JUNO Probe</h1><p>刷新页面以更新实时记录</p><div/><div class="container"><table class="table table-hover"><thead><tr><th>队伍</th><th>分数</th><th>时间</th></tr></thead><tbody>"#;
+impl History {
+    fn as_html(&self) -> String {
+        let mut table = String::new();
+        let tz_offset = chrono::FixedOffset::east_opt(8 * 3600).unwrap();
+        for (team, records) in &self.0 {
+            table.push_str(&format!(r#"<div><h3>{}</h3><table class="table table-hover"><thead><tr><th>分数</th><th>时间</th></tr></thead><tbody>"#, team));
+            for record in records {
+                table.push_str(&format!(
+                    "<tr><td>{}</td><td>{}</td></tr>",
+                    record.score,
+                    tz_offset
+                        .from_utc_datetime(&record.time.naive_utc())
+                        .format("%Y-%m-%d %H:%M:%S")
+                ));
+            }
+            table.push_str("</tbody></table></div>");
+        }
+        table
+    }
+}
+
+impl Leaderboard {
+    fn as_html(&self) -> String {
+        let table_head = r#"<div class="container"><h1>Ghost Hunter 2024 - JUNO Probe</h1><p>刷新页面以更新实时记录</p><div/><div class="container"><h2>排名</h2><table class="table table-hover"><thead><tr><th>队伍</th><th>分数</th><th>时间</th></tr></thead><tbody>"#;
         let table_tail = "</tbody></table><div/>";
         let mut table_body = String::new();
         let mut list: Vec<_> = self.0.iter().collect();
@@ -70,18 +95,20 @@ impl IntoResponse for Leaderboard {
                     .format("%Y-%m-%d %H:%M:%S")
             ));
         }
-        let style = r#"<link href="https://cdnjs.snrat.com/ajax/libs/bootswatch/5.3.3/darkly/bootstrap.min.css" rel="stylesheet">"#;
-        let table = format!(
-            r#"<!doctype html><html lang=zh-CN><head>{}<meta charset=utf-8 /><meta name=viewport content="width=device-width,initial-scale=1.0" /><title>Ghost Hunter 排行榜</title></head><body>{}{}{}<body/></html>"#,
-            style, table_head, table_body, table_tail
-        );
-        Html(table).into_response()
+        let table = format!("{}{}{}", table_head, table_body, table_tail);
+        table
     }
 }
 
 pub async fn get_leaderboard_handler(State(state): State<AppState>) -> Result<Response, AppError> {
     let board = state.board.read().await;
-    Ok(board.clone().into_response())
+    let history = state.history.read().await;
+    let page = format!(
+        r#"<!doctype html><html lang=zh-CN><head><link href="https://cdnjs.snrat.com/ajax/libs/bootswatch/5.3.3/darkly/bootstrap.min.css" rel="stylesheet"><meta charset=utf-8 /><meta name=viewport content="width=device-width,initial-scale=1.0" /><title>Ghost Hunter 2024 排行榜</title></head><body>{}{}</body></html>"#,
+        board.as_html(),
+        history.as_html()
+    );
+    Ok(Html(page).into_response())
 }
 
 #[instrument(skip(state))]
@@ -89,6 +116,13 @@ pub async fn post_score_handler(
     State(state): State<AppState>,
     Json(score): Json<ScorePost>,
 ) -> Result<Response, AppError> {
+    let mut history = state.history.write().await;
+    let records = history.0.entry(score.team.clone()).or_insert_with(Vec::new);
+    records.push(Record {
+        score: score.score,
+        time: score.time,
+    });
+    event!(Level::INFO, "team {} post a new record", score.team);
     if let Some(r) = state.board.read().await.0.get(&score.team) {
         if r.score > score.score {
             return Err(AppError::Conflict(

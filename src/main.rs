@@ -29,10 +29,10 @@ async fn main() -> Result<()> {
     let config = std::fs::read_to_string(config_path)?;
     let config: Config = toml::from_str(config.as_str())?;
     event!(Level::INFO, "set data file to {:?}", &config.store.data);
-    if let Some(parent_dir) = std::path::Path::new(&config.store.data).parent() {
-        std::fs::create_dir_all(parent_dir)?;
-    }
+    std::fs::create_dir_all(&config.store.data)?;
     use tokio::sync::RwLock;
+    let leaderboard_path = std::path::Path::new(&config.store.data).join("leaderboard.json");
+    let history_path = std::path::Path::new(&config.store.data).join("history.json");
     let list = RwLock::new(
         {
             let file = std::fs::OpenOptions::new()
@@ -40,15 +40,28 @@ async fn main() -> Result<()> {
                 .write(true)
                 .create(true)
                 .truncate(false)
-                .open(&config.store.data)?;
+                .open(&leaderboard_path)?;
             let reader = std::io::BufReader::new(file);
             let l: view::RecordList = serde_json::from_reader(reader).unwrap_or_default();
             l
         }
         .list,
     );
+    let history = RwLock::new({
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&history_path)?;
+        let reader = std::io::BufReader::new(file);
+        let h: view::History = serde_json::from_reader(reader).unwrap_or_default();
+        h
+    });
     let list = Arc::new(list);
+    let history = Arc::new(history);
     let state = AppState {
+        history: history.clone(),
         board: list.clone(),
     };
     let app = view::router(state);
@@ -64,12 +77,15 @@ async fn main() -> Result<()> {
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
-    let file = std::fs::File::create(&config.store.data)?;
+    let file = std::fs::File::create(&leaderboard_path)?;
     let writer = std::io::BufWriter::new(file);
     let record = RecordList {
         list: list.read().await.clone(),
     };
     serde_json::to_writer(writer, &record)?;
+    let file = std::fs::File::create(&history_path)?;
+    let writer = std::io::BufWriter::new(file);
+    serde_json::to_writer(writer, &history.read().await.clone())?;
     Ok(())
 }
 
