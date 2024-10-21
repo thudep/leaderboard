@@ -104,7 +104,7 @@ pub async fn get_leaderboard_handler(State(state): State<AppState>) -> Result<Re
     let board = state.board.read().await;
     let history = state.history.read().await;
     let page = format!(
-        r#"<!doctype html><html lang=zh-CN><head><link href="https://cdnjs.snrat.com/ajax/libs/bootswatch/5.3.3/darkly/bootstrap.min.css" rel="stylesheet"><meta charset=utf-8 /><meta name=viewport content="width=device-width,initial-scale=1.0" /><title>Ghost Hunter 2024 排行榜</title></head><body>{}{}</body></html>"#,
+        r#"<!doctype html><html lang=zh-CN><head><link rel="icon" type="image/x-icon" href="https://ghosthunter.thudep.com/favicon.svg"><link href="https://cdnjs.snrat.com/ajax/libs/bootswatch/5.3.3/darkly/bootstrap.min.css" rel="stylesheet"><meta charset=utf-8 /><meta name=viewport content="width=device-width,initial-scale=1.0" /><title>Ghost Hunter 2024 排行榜</title></head><body>{}{}</body></html>"#,
         board.as_html(),
         history.as_html()
     );
