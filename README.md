@@ -9,7 +9,8 @@ Content-Type: application/json
 {
     "team": "committee",
     "score": -100000,
-    "time": "2024-10-20 18:46:14+08:00"
+    "time": "2024-10-20 18:46:14+08:00",
+    "secret": "yoursecret"
     // date --rfc-3339=secondsz
 }
 ###
@@ -25,6 +26,7 @@ curl --location 'http://127.0.0.1:9000/' \
 --data '{
     "team": "committee",
     "score": -200,
-    "time": "2024-10-21 02:05:14+08:00"
+    "time": "2024-10-21 02:05:14+08:00",
+    "secret": "yoursecret"
 }'
 ```

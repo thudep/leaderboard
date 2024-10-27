@@ -9,9 +9,12 @@ pub mod param;
 pub mod view;
 
 use config::Config;
+use once_cell::sync::OnceCell;
 use param::Args;
+use tokio::sync::RwLock;
 use view::{AppState, RecordList};
 
+static SECRET: OnceCell<String> = OnceCell::new();
 #[instrument]
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -30,7 +33,6 @@ async fn main() -> Result<()> {
     let config: Config = toml::from_str(config.as_str())?;
     event!(Level::INFO, "set data file to {:?}", &config.store.data);
     std::fs::create_dir_all(&config.store.data)?;
-    use tokio::sync::RwLock;
     let leaderboard_path = std::path::Path::new(&config.store.data).join("leaderboard.json");
     let history_path = std::path::Path::new(&config.store.data).join("history.json");
     let list = RwLock::new(
@@ -60,6 +62,7 @@ async fn main() -> Result<()> {
     });
     let list = Arc::new(list);
     let history = Arc::new(history);
+    SECRET.get_or_init(|| config.store.secret);
     let state = AppState {
         history: history.clone(),
         board: list.clone(),
