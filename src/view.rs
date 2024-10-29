@@ -23,7 +23,15 @@ pub struct Record {
 
 impl PartialOrd for Record {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.score.partial_cmp(&other.score)
+        if self.score > other.score {
+            Some(std::cmp::Ordering::Greater)
+        } else if self.score < other.score {
+            Some(std::cmp::Ordering::Less)
+        } else if self.time < other.time {
+            Some(std::cmp::Ordering::Greater)
+        } else {
+            Some(std::cmp::Ordering::Less)
+        }
     }
 }
 
