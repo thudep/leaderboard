@@ -31,7 +31,11 @@ async fn main() -> Result<()> {
     event!(Level::WARN, "reading configuration from {:?}", config_path);
     let config = std::fs::read_to_string(config_path)?;
     let config: Config = toml::from_str(config.as_str())?;
-    event!(Level::INFO, "set data file to {:?}", &config.store.data);
+    event!(
+        Level::INFO,
+        "set data directory to {:?}",
+        &config.store.data
+    );
     std::fs::create_dir_all(&config.store.data)?;
     let leaderboard_path = std::path::Path::new(&config.store.data).join("leaderboard.json");
     let history_path = std::path::Path::new(&config.store.data).join("history.json");
