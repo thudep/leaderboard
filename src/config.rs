@@ -15,6 +15,8 @@ pub struct Listen {
 pub struct Static {
     pub data: String,
     pub secret: String,
+    /// 回写时间(秒)
+    pub write_back: u64,
 }
 
 /// 后端配置
