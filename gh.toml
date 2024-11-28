@@ -1,7 +1,6 @@
 [store]
 data = "/srv/leaderboard/"
 secret = "secret"
-write_back = 60
 
 [listen]
 address = "127.0.0.1"

@@ -70,6 +70,8 @@ async fn main() -> Result<()> {
     let state = AppState {
         history: history.clone(),
         board: list.clone(),
+        leaderboard_path: leaderboard_path.clone(),
+        history_path: history_path.clone(),
     };
     let app = view::router(state);
     let listener =
@@ -81,40 +83,9 @@ async fn main() -> Result<()> {
         config.listen.address,
         config.listen.port
     );
-    let (h, l, hp, lp) = (
-        history.clone(),
-        list.clone(),
-        history_path.clone(),
-        leaderboard_path.clone(),
-    );
-    let write_back_duration = config.store.write_back;
-    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
-    let write_back_task = {
-        let shutdown_rx = shutdown_rx.clone();
-        tokio::task::spawn(async move {
-            let mut shutdown_rx = shutdown_rx;
-            loop {
-                tokio::select! {
-                    _ = shutdown_rx.changed() => {
-                        event!(Level::INFO, "stopping write_back task");
-                        break;
-                    }
-                    _ = tokio::time::sleep(tokio::time::Duration::from_secs(write_back_duration)) => {
-                        match write_back(h.clone(), l.clone(), &hp, &lp).await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                event!(Level::ERROR, "failed to write back: {:?}", e);
-                            }
-                        }
-                    }
-                }
-            }
-        })
-    };
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal(shutdown_tx))
+        .with_graceful_shutdown(shutdown_signal())
         .await?;
-    write_back_task.await?;
     write_back(history, list, &history_path, &leaderboard_path).await?;
     Ok(())
 }
@@ -143,7 +114,7 @@ async fn write_back(
     Ok(())
 }
 
-async fn shutdown_signal(shutdown_tx: tokio::sync::watch::Sender<bool>) {
+async fn shutdown_signal() {
     let ctrl_c = async {
         tokio::signal::ctrl_c()
             .await
@@ -160,5 +131,4 @@ async fn shutdown_signal(shutdown_tx: tokio::sync::watch::Sender<bool>) {
         _ = terminate => {},
     }
     tracing::event!(tracing::Level::INFO, "gracefully shutting down");
-    shutdown_tx.send(true).ok();
 }

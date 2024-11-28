@@ -56,6 +56,8 @@ pub struct Leaderboard(HashMap<String, Record>);
 pub struct AppState {
     pub history: Arc<RwLock<History>>,
     pub board: Arc<RwLock<Leaderboard>>,
+    pub history_path: std::path::PathBuf,
+    pub leaderboard_path: std::path::PathBuf,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -152,6 +154,13 @@ pub async fn post_score_handler(
         },
     );
     event!(Level::INFO, "team {} update", score.team);
+    super::write_back(
+        state.history.clone(),
+        state.board.clone(),
+        &state.history_path,
+        &state.leaderboard_path,
+    )
+    .await?;
     Ok(StatusCode::CREATED.into_response())
 }
 pub fn router(state: AppState) -> Router {
