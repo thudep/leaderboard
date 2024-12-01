@@ -131,7 +131,8 @@ pub async fn post_score_handler(
     if &score.secret != SECRET.get().unwrap() {
         return Err(AppError::Unauthorized("invalid secret".to_string()));
     }
-    let mut history = state.history.write().await;
+    let history = state.history.clone();
+    let mut history = history.write().await;
     let records = history.0.entry(score.team.clone()).or_insert_with(Vec::new);
     records.push(Record {
         score: score.score,
@@ -145,7 +146,8 @@ pub async fn post_score_handler(
             ));
         }
     }
-    let mut board = state.board.write().await;
+    let board = state.board.clone();
+    let mut board = board.write().await;
     board.0.insert(
         score.team.clone(),
         Record {
@@ -154,13 +156,28 @@ pub async fn post_score_handler(
         },
     );
     event!(Level::INFO, "team {} update", score.team);
-    super::write_back(
-        state.history.clone(),
-        state.board.clone(),
-        &state.history_path,
-        &state.leaderboard_path,
-    )
-    .await?;
+    tokio::task::spawn(async move {
+        let s = state.clone();
+        match super::write_back(
+            s.history.clone(),
+            s.board.clone(),
+            &s.history_path,
+            &s.leaderboard_path,
+        )
+        .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                event!(
+                    Level::ERROR,
+                    "fail to write back to {:?} and {:?}: {}",
+                    s.history_path,
+                    s.leaderboard_path,
+                    e
+                );
+            }
+        }
+    });
     Ok(StatusCode::CREATED.into_response())
 }
 pub fn router(state: AppState) -> Router {
