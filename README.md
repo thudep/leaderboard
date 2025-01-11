@@ -9,9 +9,8 @@ Content-Type: application/json
 {
     "team": "committee",
     "score": -100000,
-    "time": "2024-10-20 18:46:14+08:00",
+    "time": "2024-10-20 18:46:14+08:00",  // date --rfc-3339=seconds
     "secret": "yoursecret"
-    // date --rfc-3339=secondsz
 }
 ###
 
