@@ -12,9 +12,10 @@ use config::Config;
 use once_cell::sync::OnceCell;
 use param::Args;
 use tokio::sync::RwLock;
-use view::{AppState, History, Leaderboard, RecordList};
+use view::{AppState, History};
 
 static SECRET: OnceCell<String> = OnceCell::new();
+
 #[instrument]
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -37,23 +38,9 @@ async fn main() -> Result<()> {
         &config.store.data
     );
     std::fs::create_dir_all(&config.store.data)?;
-    let leaderboard_path = std::path::Path::new(&config.store.data).join("leaderboard.json");
     let history_path = std::path::Path::new(&config.store.data).join("history.json");
-    let list = RwLock::new(
-        {
-            let file = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open(&leaderboard_path)?;
-            let reader = std::io::BufReader::new(file);
-            let l: view::RecordList = serde_json::from_reader(reader).unwrap_or_default();
-            l
-        }
-        .list,
-    );
-    let history = RwLock::new({
+
+    let history = {
         let file = std::fs::OpenOptions::new()
             .read(true)
             .write(true)
@@ -63,14 +50,16 @@ async fn main() -> Result<()> {
         let reader = std::io::BufReader::new(file);
         let h: view::History = serde_json::from_reader(reader).unwrap_or_default();
         h
-    });
-    let list = Arc::new(list);
-    let history = Arc::new(history);
+    };
+
+    let list = { &history }.into();
+    let list = Arc::new(RwLock::new(list));
+    let history = Arc::new(RwLock::new(history));
+
     SECRET.get_or_init(|| config.store.secret);
     let state = AppState {
         history: history.clone(),
-        board: list.clone(),
-        leaderboard_path: leaderboard_path.clone(),
+        board: list,
         history_path: history_path.clone(),
     };
     let app = view::router(state);
@@ -86,31 +75,18 @@ async fn main() -> Result<()> {
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
-    write_back(history, list, &history_path, &leaderboard_path).await?;
+    write_back(history, &history_path).await?;
     Ok(())
 }
 
 async fn write_back(
     history: Arc<RwLock<History>>,
-    list: Arc<RwLock<Leaderboard>>,
     history_path: &std::path::PathBuf,
-    leaderboard_path: &std::path::PathBuf,
 ) -> Result<()> {
-    let file = std::fs::File::create(&leaderboard_path)?;
-    let writer = std::io::BufWriter::new(file);
-    let record = RecordList {
-        list: list.read().await.clone(),
-    };
-    serde_json::to_writer(writer, &record)?;
-    let file = std::fs::File::create(&history_path)?;
+    let file = std::fs::File::create(history_path)?;
     let writer = std::io::BufWriter::new(file);
     serde_json::to_writer(writer, &history.read().await.clone())?;
-    event!(
-        Level::INFO,
-        "write back to {:?} and {:?}",
-        history_path,
-        leaderboard_path
-    );
+    event!(Level::INFO, "write back to {:?}", history_path);
     Ok(())
 }
 

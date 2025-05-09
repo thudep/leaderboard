@@ -42,22 +42,28 @@ impl PartialEq for Record {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct RecordList {
-    pub list: Leaderboard,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct History(HashMap<String, Vec<Record>>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Leaderboard(HashMap<String, Record>);
+
+impl From<&History> for Leaderboard {
+    fn from(history: &History) -> Self {
+        let mut leaderboard = HashMap::new();
+        for (team, records) in history.0.iter() {
+            if let Some(best_record) = records.iter().max_by(|a, b| a.partial_cmp(b).unwrap()) {
+                leaderboard.insert(team.clone(), best_record.clone());
+            }
+        }
+        Leaderboard(leaderboard)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub history: Arc<RwLock<History>>,
     pub board: Arc<RwLock<Leaderboard>>,
     pub history_path: std::path::PathBuf,
-    pub leaderboard_path: std::path::PathBuf,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -158,21 +164,13 @@ pub async fn post_score_handler(
     event!(Level::INFO, "team {} update", score.team);
     tokio::task::spawn(async move {
         let s = state.clone();
-        match super::write_back(
-            s.history.clone(),
-            s.board.clone(),
-            &s.history_path,
-            &s.leaderboard_path,
-        )
-        .await
-        {
+        match super::write_back(s.history.clone(), &s.history_path).await {
             Ok(_) => {}
             Err(e) => {
                 event!(
                     Level::ERROR,
-                    "fail to write back to {:?} and {:?}: {}",
+                    "fail to write back to {:?}: {}",
                     s.history_path,
-                    s.leaderboard_path,
                     e
                 );
             }
@@ -180,6 +178,7 @@ pub async fn post_score_handler(
     });
     Ok(StatusCode::CREATED.into_response())
 }
+
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/", post(post_score_handler).get(get_leaderboard_handler))
