@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use std::sync::Arc;
-use tracing::{event, instrument, Level};
+use tracing::{Level, event, instrument};
 
 pub mod config;
 pub mod error;
@@ -32,13 +32,8 @@ async fn main() -> Result<()> {
     event!(Level::WARN, "reading configuration from {:?}", config_path);
     let config = std::fs::read_to_string(config_path)?;
     let config: Config = toml::from_str(config.as_str())?;
-    event!(
-        Level::INFO,
-        "set data directory to {:?}",
-        &config.store.data
-    );
-    std::fs::create_dir_all(&config.store.data)?;
-    let history_path = std::path::Path::new(&config.store.data).join("history.json");
+    event!(Level::INFO, "set data file to {:?}", &config.store.data);
+    let history_path = std::path::PathBuf::from(&config.store.data);
 
     let history = {
         let file = std::fs::OpenOptions::new()
