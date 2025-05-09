@@ -9,12 +9,12 @@ pub mod param;
 pub mod view;
 
 use config::Config;
-use once_cell::sync::OnceCell;
 use param::Args;
+use std::sync::OnceLock;
 use tokio::sync::RwLock;
 use view::{AppState, History};
 
-static SECRET: OnceCell<String> = OnceCell::new();
+static SECRET: OnceLock<String> = OnceLock::new();
 
 #[instrument]
 #[tokio::main]

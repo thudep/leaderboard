@@ -1,5 +1,5 @@
 [store]
-data = "/srv/leaderboard/"
+data = "/srv/leaderboard/history.json"
 secret = "secret"
 
 [listen]
