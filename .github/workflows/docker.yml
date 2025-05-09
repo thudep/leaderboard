@@ -16,7 +16,15 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Delete All Old Images
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          keep-n-untagged: 0
+          package: heartbeat
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/checkout@v4
+
       # https://github.com/docker/setup-buildx-action
       - name: Set Up Docker Buildx
         uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
