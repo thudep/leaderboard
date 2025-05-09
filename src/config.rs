@@ -17,10 +17,16 @@ pub struct Static {
     pub secret: String,
 }
 
+#[derive(Deserialize)]
+pub struct Metadata {
+    pub year: u16,
+}
+
 /// 后端配置
 #[derive(Deserialize)]
 pub struct Config {
     /// 监听配置
     pub listen: Listen,
     pub store: Static,
+    pub meta: Metadata,
 }

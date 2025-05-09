@@ -15,6 +15,7 @@ use tokio::sync::RwLock;
 use view::{AppState, History};
 
 static SECRET: OnceLock<String> = OnceLock::new();
+static YEAR: OnceLock<u16> = OnceLock::new();
 
 #[instrument]
 #[tokio::main]
@@ -52,6 +53,8 @@ async fn main() -> Result<()> {
     let history = Arc::new(RwLock::new(history));
 
     SECRET.get_or_init(|| config.store.secret);
+    YEAR.get_or_init(|| config.meta.year);
+
     let state = AppState {
         history: history.clone(),
         board: list,
