@@ -19,7 +19,9 @@ jobs:
       - name: Delete All Old Images
         uses: dataaxiom/ghcr-cleanup-action@v1
         with:
-          keep-n-untagged: 0
+          exclude-tags: latest
+          keep-n-untagged: 2
+          deleted-untagged: true
           package: ${{ github.event.repository.name }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
