@@ -1,4 +1,4 @@
-use super::{SECRET, YEAR, error::AppError};
+use super::{SECRET, TITLE, YEAR, error::AppError};
 
 use axum::{
     Json, Router,
@@ -97,7 +97,8 @@ impl History {
 impl Leaderboard {
     fn as_html(&self) -> String {
         let table_head = format!(
-            r#"<div class="container"><h1>Ghost Hunter {} - JUNO Probe</h1><p>刷新页面以更新实时记录</p><div/><div class="container"><h2>排名</h2><table class="table table-hover"><thead><tr><th>队伍</th><th>分数</th><th>时间</th></tr></thead><tbody>"#,
+            r#"<div class="container"><h1>{} {}</h1><p>刷新页面以更新实时记录</p><div/><div class="container"><h2>排名</h2><table class="table table-hover"><thead><tr><th>队伍</th><th>分数</th><th>时间</th></tr></thead><tbody>"#,
+            TITLE.get().unwrap(),
             YEAR.get().unwrap()
         );
         let table_tail = "</tbody></table><div/>";
@@ -124,7 +125,8 @@ pub async fn get_leaderboard_handler(State(state): State<AppState>) -> Result<Re
     let board = state.board.read().await;
     let history = state.history.read().await;
     let page = format!(
-        r#"<!doctype html><html lang=zh-CN><head><link rel="icon" type="image/x-icon" href="./favicon.svg"><link href="https://cdnjs.snrat.com/ajax/libs/bootswatch/5.3.3/darkly/bootstrap.min.css" rel="stylesheet"><meta charset=utf-8 /><meta name=viewport content="width=device-width,initial-scale=1.0" /><title>Ghost Hunter {} 排行榜</title></head><body>{}{}</body></html>"#,
+        r#"<!doctype html><html lang=zh-CN><head><link rel="icon" type="image/x-icon" href="./favicon.svg"><link href="https://cdnjs.snrat.com/ajax/libs/bootswatch/5.3.3/darkly/bootstrap.min.css" rel="stylesheet"><meta charset=utf-8 /><meta name=viewport content="width=device-width,initial-scale=1.0" /><title>{} {} 排行榜</title></head><body>{}{}</body></html>"#,
+        TITLE.get().unwrap(),
         YEAR.get().unwrap(),
         board.as_html(),
         history.as_html()

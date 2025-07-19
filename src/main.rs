@@ -16,6 +16,7 @@ use view::{AppState, History};
 
 static SECRET: OnceLock<String> = OnceLock::new();
 static YEAR: OnceLock<u16> = OnceLock::new();
+static TITLE: OnceLock<String> = OnceLock::new();
 
 #[instrument]
 #[tokio::main]
@@ -53,6 +54,7 @@ async fn main() -> Result<()> {
     let history = Arc::new(RwLock::new(history));
 
     SECRET.get_or_init(|| config.store.secret);
+    TITLE.get_or_init(|| config.meta.title);
     YEAR.get_or_init(|| config.meta.year);
 
     let state = AppState {

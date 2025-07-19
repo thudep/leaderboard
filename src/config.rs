@@ -20,6 +20,7 @@ pub struct Static {
 #[derive(Deserialize)]
 pub struct Metadata {
     pub year: u16,
+    pub title: String,
 }
 
 /// 后端配置
