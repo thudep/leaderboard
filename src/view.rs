@@ -1,5 +1,8 @@
 use super::{SECRET, TITLE, YEAR, error::AppError};
 
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+
 use axum::{
     Json, Router,
     extract::State,
@@ -9,9 +12,6 @@ use axum::{
 };
 use chrono::TimeZone;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::{Level, event, instrument};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -122,8 +122,8 @@ impl Leaderboard {
 }
 
 pub async fn get_leaderboard_handler(State(state): State<AppState>) -> Result<Response, AppError> {
-    let board = state.board.read().await;
-    let history = state.history.read().await;
+    let board = state.board.read().unwrap();
+    let history = state.history.read().unwrap();
     let page = format!(
         r#"<!doctype html><html lang=zh-CN><head><link rel="icon" type="image/x-icon" href="./favicon.svg"><link href="https://cdnjs.snrat.com/ajax/libs/bootswatch/5.3.3/darkly/bootstrap.min.css" rel="stylesheet"><meta charset=utf-8 /><meta name=viewport content="width=device-width,initial-scale=1.0" /><title>{} {} 排行榜</title></head><body>{}{}</body></html>"#,
         TITLE.get().unwrap(),
@@ -143,22 +143,22 @@ pub async fn post_score_handler(
         return Err(AppError::Unauthorized("invalid secret".to_string()));
     }
     let history = state.history.clone();
-    let mut history = history.write().await;
+    let mut history = history.write().unwrap();
     let records = history.0.entry(score.team.clone()).or_insert_with(Vec::new);
     records.push(Record {
         score: score.score,
         time: score.time,
     });
     event!(Level::INFO, "team {} post a new record", score.team);
-    if let Some(r) = state.board.read().await.0.get(&score.team) {
-        if r.score > score.score {
-            return Err(AppError::Conflict(
-                "score is lower than current".to_string(),
-            ));
-        }
+    if let Some(r) = state.board.read().unwrap().0.get(&score.team)
+        && r.score > score.score
+    {
+        return Err(AppError::Conflict(
+            "score is lower than current".to_string(),
+        ));
     }
     let board = state.board.clone();
-    let mut board = board.write().await;
+    let mut board = board.write().unwrap();
     board.0.insert(
         score.team.clone(),
         Record {
@@ -167,7 +167,7 @@ pub async fn post_score_handler(
         },
     );
     event!(Level::INFO, "team {} update", score.team);
-    tokio::task::spawn(async move {
+    compio::runtime::spawn(async move {
         let s = state.clone();
         match super::write_back(s.history.clone(), &s.history_path).await {
             Ok(_) => {}
@@ -180,7 +180,8 @@ pub async fn post_score_handler(
                 );
             }
         }
-    });
+    })
+    .detach();
     Ok(StatusCode::CREATED.into_response())
 }
 

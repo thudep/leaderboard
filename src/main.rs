@@ -1,6 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
-use std::sync::Arc;
+use compio::io::AsyncWriteAt;
+use futures_util::FutureExt;
+use std::sync::{Arc, RwLock};
 use tracing::{Level, event, instrument};
 
 pub mod config;
@@ -11,7 +13,6 @@ pub mod view;
 use config::Config;
 use param::Args;
 use std::sync::OnceLock;
-use tokio::sync::RwLock;
 use view::{AppState, History};
 
 static SECRET: OnceLock<String> = OnceLock::new();
@@ -19,7 +20,7 @@ static YEAR: OnceLock<u16> = OnceLock::new();
 static TITLE: OnceLock<String> = OnceLock::new();
 
 #[instrument]
-#[tokio::main]
+#[compio::main]
 async fn main() -> Result<()> {
     let subscriber = tracing_subscriber::fmt()
         .compact()
@@ -31,7 +32,7 @@ async fn main() -> Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
     let args = Args::parse();
     let config_path = std::path::Path::new(args.config.as_str());
-    event!(Level::WARN, "reading configuration from {:?}", config_path);
+    event!(Level::INFO, "reading configuration from {:?}", config_path);
     let config = std::fs::read_to_string(config_path)?;
     let config: Config = toml::from_str(config.as_str())?;
     event!(Level::INFO, "set data file to {:?}", &config.store.data);
@@ -64,15 +65,15 @@ async fn main() -> Result<()> {
     };
     let app = view::router(state);
     let listener =
-        tokio::net::TcpListener::bind(format!("{}:{}", config.listen.address, config.listen.port))
+        compio::net::TcpListener::bind(format!("{}:{}", config.listen.address, config.listen.port))
             .await?;
     event!(
         Level::INFO,
-        "listen on http://{}:{}",
+        "listen on address {} port {}",
         config.listen.address,
         config.listen.port
     );
-    axum::serve(listener, app)
+    cyper_axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
     write_back(history, &history_path).await?;
@@ -83,28 +84,23 @@ async fn write_back(
     history: Arc<RwLock<History>>,
     history_path: &std::path::PathBuf,
 ) -> Result<()> {
-    let file = std::fs::File::create(history_path)?;
-    let writer = std::io::BufWriter::new(file);
-    serde_json::to_writer(writer, &history.read().await.clone())?;
+    serde_json::to_vec(&history.read().unwrap().clone())?;
+
+    let data = serde_json::to_vec(&history.read().unwrap().clone())?;
+    let mut file = compio::fs::File::create(history_path).await?;
+    file.write_at(data, 0).await.0?;
     event!(Level::INFO, "write back to {:?}", history_path);
     Ok(())
 }
 
 async fn shutdown_signal() {
-    let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-    let terminate = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+    let sigint = compio::signal::unix::signal(2);
+    let sigint = std::pin::pin!(sigint);
+    let sigterm = compio::signal::unix::signal(15);
+    let sigterm = std::pin::pin!(sigterm);
+    futures_util::select! {
+         _ = sigint.fuse() => {},
+         _ = sigterm.fuse() => {},
     }
     tracing::event!(tracing::Level::INFO, "gracefully shutting down");
 }

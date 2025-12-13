@@ -3,7 +3,7 @@ data = "/srv/leaderboard/history.json"
 secret = "secret"
 
 [listen]
-address = "0.0.0.0"
+address = "::"
 port = 80
 
 [meta]

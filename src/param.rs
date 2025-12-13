@@ -6,7 +6,7 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    /// 配置文件路径
+    /// config file path
     #[arg(short, long, default_value = "/etc/leaderboard/leaderboard.toml")]
     pub config: String,
 }
