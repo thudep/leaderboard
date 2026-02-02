@@ -13,7 +13,7 @@ axum = "0.8"
 clap = { features = ["derive"], version = "4" }
 serde = { features = ["derive"], version = "1" }
 serde_json = "1"
-compio = { version = "0.17", features = [
+compio = { version = "0.18", features = [
     "io",
     "io-uring",
     "runtime",
