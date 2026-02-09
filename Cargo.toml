@@ -13,7 +13,7 @@ axum = "0.8"
 clap = { features = ["derive"], version = "4" }
 serde = { features = ["derive"], version = "1" }
 serde_json = "1"
-compio = { version = "0.17", features = [
+compio = { version = "0.18", features = [
     "io",
     "io-uring",
     "runtime",
@@ -24,7 +24,7 @@ chrono = { features = ["serde"], version = "0.4" }
 toml = "0.9"
 tracing = "0.1"
 tracing-subscriber = "0.3"
-cyper-axum = "0.7"
+cyper-axum = "0.8"
 futures-util = "0.3"
 
 [profile.dev]
